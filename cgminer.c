@@ -2316,7 +2316,10 @@ static bool shared_strategy(void)
 	wprintw(win, "%s", tmp42); \
 } while (0)
 
+static struct timeval rotate_tv;
+
 /* Must be called with curses mutex lock held and curses_active */
+/* Added strategy to be displayed on line 4 as well as starttime for Rotate strategy */
 static void curses_print_status(void)
 {
 	struct pool *pool = current_pool();
@@ -2332,15 +2335,17 @@ static void curses_print_status(void)
 		local_work, total_go, total_ro);
 	wclrtoeol(statuswin);
 	if (shared_strategy() && total_pools > 1) {
-		cg_mvwprintw(statuswin, 4, 0, " Connected to multiple pools with%s block change notify",
-			have_longpoll ? "": "out");
+		cg_mvwprintw(statuswin, 4, 0, " Connected to multiple pools with%s block change notify [Strategy:%s]",
+			have_longpoll ? "": "out", strategies[pool_strategy].s);
 	} else if (pool->has_stratum) {
-		cg_mvwprintw(statuswin, 4, 0, " Connected to %s diff %s with stratum as user %s",
-			pool->sockaddr_url, pool->diff, pool->rpc_user);
+		char rotatetime[32] ;
+		get_timestamp(rotatetime, sizeof(rotatetime), &rotate_tv);
+		cg_mvwprintw(statuswin, 4, 0, " Connected to %s diff %s with stratum as user %s since %s [Strategy:%s]",
+			pool->sockaddr_url, pool->diff, pool->rpc_user, rotatetime, strategies[pool_strategy].s);
 	} else {
-		cg_mvwprintw(statuswin, 4, 0, " Connected to %s diff %s with%s %s as user %s",
+		cg_mvwprintw(statuswin, 4, 0, " Connected to %s diff %s with%s %s as user %s [Strategy:%s]",
 			pool->sockaddr_url, pool->diff, have_longpoll ? "": "out",
-			pool->has_gbt ? "GBT" : "LP", pool->rpc_user);
+			pool->has_gbt ? "GBT" : "LP", pool->rpc_user, strategies[pool_strategy].s);
 	}
 	wclrtoeol(statuswin);
 	cg_mvwprintw(statuswin, 5, 0, " Block: %s...  Diff:%s  Started: %s  Best share: %s   ",
@@ -7042,7 +7047,6 @@ void reinit_device(struct cgpu_info *cgpu)
 	cgpu->drv->reinit_device(cgpu);
 }
 
-static struct timeval rotate_tv;
 
 /* We reap curls if they are unused for over a minute */
 static void reap_curl(struct pool *pool)
